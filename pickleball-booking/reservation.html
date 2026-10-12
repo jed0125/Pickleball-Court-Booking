@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservation - Pickleball Booking</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <a href="index-dashboard.html" class="logo">Pickleball<span>Court</span></a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="alert-container"></div>
+
+    <div class="card" style="max-width: 600px; margin: 0 auto;">
+      <div id="booking-header" style="text-align: center; margin-bottom: 24px;">
+        <div class="loading-state" style="padding: 16px 0;">
+          <div class="loading-spinner"></div>
+          <div>Loading booking...</div>
+        </div>
+      </div>
+
+      <div id="booking-details" style="display: none; text-align: left; margin-bottom: 24px; padding: 16px; background: var(--secondary); border-radius: var(--radius);">
+        <p><strong>Court:</strong> <span id="court-name"></span></p>
+        <p><strong>Date:</strong> <span id="booking-date"></span></p>
+        <p><strong>Time:</strong> <span id="booking-time"></span></p>
+        <p><strong>Guest:</strong> <span id="guest-name"></span></p>
+        <p><strong>Phone:</strong> <span id="guest-phone"></span></p>
+        <p><strong>Payment:</strong> Online (GCash / Maya)</p>
+      </div>
+
+      <div id="qr-section" style="display: none;" class="qr-container">
+        <p style="color: var(--text-light); margin-bottom: 12px;">Scan to pay via GCash / Maya</p>
+        <img src="img/payment-qr.svg" alt="Payment QR Code" id="qr-image" onerror="this.style.display='none'; document.getElementById('qr-placeholder').style.display='flex';">
+        <div id="qr-placeholder" class="qr-placeholder" style="display: none;">QR Code Placeholder<br><small>Replace img/payment-qr.svg with actual QR</small></div>
+      </div>
+
+      <div id="amount-section" style="display: none;" class="amount-due">Amount Due: PHP <span id="amount-due">500</span></div>
+
+      <button id="paid-btn" class="btn btn-success btn-lg" style="display: none; width: 100%;">I've Paid</button>
+
+      <div id="chat-section" style="display: none;" class="chat-container">
+        <h3 style="color: var(--primary); margin-bottom: 16px;">Chat with Staff</h3>
+        <div class="chat-messages" id="chat-messages">
+          <div class="loading-state" style="padding: 24px;">
+            <div class="loading-spinner"></div>
+            <div>Loading messages...</div>
+          </div>
+        </div>
+        <div class="chat-input">
+          <input type="text" id="message-text" placeholder="Type a message..." aria-label="Message">
+          <div class="file-input-wrapper">
+            <input type="file" id="message-file" accept="image/*" aria-label="Upload image">
+            <button type="button" class="btn btn-file" id="file-btn" onclick="document.getElementById('message-file').click()">Attach Image</button>
+          </div>
+          <button type="button" class="btn btn-primary" id="send-btn" onclick="sendMessage()">Send</button>
+        </div>
+        <div id="sending-indicator" class="sending-indicator" style="display: none;"></div>
+      </div>
+
+      <div id="error-state" style="display: none;" class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <div class="empty-state-title" id="error-title"></div>
+        <div class="empty-state-desc" id="error-desc"></div>
+        <a href="index-dashboard.html" class="btn btn-primary" style="margin-top: 16px;">Back to Home</a>
+      </div>
+
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="index-dashboard.html" class="btn btn-outline">Back to Home</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2025 Pickleball Court Booking. All rights reserved.</p>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    const bookingId = getUrlParam('id');
+    let messagesChannel = null;
+    let currentBooking = null;
+    let isAdmin = false;
+
+    const statusBadges = {
+      'awaiting_cash_payment': 'badge-awaiting_cash_payment',
+      'awaiting_payment': 'badge-awaiting_payment',
+      'pending_confirmation': 'badge-pending_confirmation',
+      'confirmed': 'badge-confirmed',
+      'cancelled': 'badge-cancelled'
+    };
+
+    const statusLabels = {
+      'awaiting_cash_payment': 'Awaiting Cash Payment',
+      'awaiting_payment': 'Awaiting Payment',
+      'pending_confirmation': 'Pending Confirmation',
+      'confirmed': 'Confirmed',
+      'cancelled': 'Cancelled'
+    };
+
+    if (!bookingId) {
+      showError('Invalid reservation link. No booking ID provided.', 'No Booking ID');
+    } else {
+      initReservation();
+    }
+
+    async function initReservation() {
+      try {
+        currentBooking = await fetchBookingById(bookingId);
+        await checkIfAdmin();
+        renderBooking(currentBooking);
+        setupChat();
+        loadMessages();
+      } catch (err) {
+        showError('Booking not found: ' + err.message, 'Booking Not Found');
+      }
+    }
+
+    function showError(message, title) {
+      document.getElementById('booking-header').style.display = 'none';
+      document.getElementById('booking-details').style.display = 'none';
+      document.getElementById('qr-section').style.display = 'none';
+      document.getElementById('amount-section').style.display = 'none';
+      document.getElementById('paid-btn').style.display = 'none';
+      document.getElementById('chat-section').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
+      document.getElementById('error-title').textContent = title;
+      document.getElementById('error-desc').innerHTML = message;
+    }
+
+    async function checkIfAdmin() {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabaseClient.from('profiles').select('is_admin').eq('id', user.id).single();
+        isAdmin = profile?.is_admin === true;
+      }
+      updateFileInputVisibility();
+    }
+
+    function updateFileInputVisibility() {
+      const fileBtn = document.getElementById('file-btn');
+      if (isAdmin) {
+        fileBtn.style.display = 'inline-flex';
+      } else {
+        fileBtn.style.display = 'none';
+      }
+    }
+
+    function renderBooking(booking) {
+      const dateObj = parseDate(booking.date);
+
+      document.getElementById('booking-header').innerHTML = `
+        <div style="font-family: monospace; font-size: 1.5rem; letter-spacing: 1px; color: var(--primary);" id="booking-code-display">${booking.booking_code}</div>
+        <span class="badge ${statusBadges[booking.status] || ''} status-badge-large" id="status-badge">${statusLabels[booking.status] || booking.status}</span>
+      `;
+
+      document.getElementById('court-name').textContent = booking.courts?.name || 'Court ' + booking.court_id;
+      document.getElementById('booking-date').textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      document.getElementById('booking-time').textContent = booking.time_slot;
+      document.getElementById('guest-name').textContent = booking.guest_name;
+      document.getElementById('guest-phone').textContent = booking.guest_phone;
+      document.getElementById('amount-due').textContent = PAYMENT_AMOUNT;
+
+      const paidBtn = document.getElementById('paid-btn');
+      if (booking.status === 'awaiting_payment') {
+        paidBtn.style.display = 'block';
+        paidBtn.onclick = handlePaidClick;
+      } else {
+        paidBtn.style.display = 'none';
+      }
+
+      // Show all sections
+      document.getElementById('booking-header').style.display = 'block';
+      document.getElementById('booking-details').style.display = 'block';
+      document.getElementById('qr-section').style.display = 'block';
+      document.getElementById('amount-section').style.display = 'block';
+      document.getElementById('chat-section').style.display = 'block';
+      document.getElementById('error-state').style.display = 'none';
+    }
+
+    async function handlePaidClick() {
+      const btn = document.getElementById('paid-btn');
+      showLoading(btn);
+      try {
+        await markBookingPaid(bookingId);
+        showAlert('Payment declared! Staff will verify shortly.', 'success');
+        currentBooking.status = 'pending_confirmation';
+        renderBooking(currentBooking);
+      } catch (err) {
+        showAlert('Failed to update status: ' + err.message, 'error');
+      } finally {
+        hideLoading(btn);
+      }
+    }
+
+    function setupChat() {
+      messagesChannel = subscribeToMessages(bookingId, (message) => {
+        appendMessage(message);
+        removeEmptyState();
+      });
+    }
+
+    async function loadMessages() {
+      try {
+        const messages = await fetchMessages(bookingId);
+        const container = document.getElementById('chat-messages');
+        container.innerHTML = '';
+        if (messages.length === 0) {
+          container.innerHTML = '<div class="empty-chat">No messages yet. Start the conversation!</div>';
+        } else {
+          messages.forEach(appendMessage);
+        }
+        scrollToBottom();
+      } catch (err) {
+        showAlert('Failed to load messages: ' + err.message, 'error');
+        document.getElementById('chat-messages').innerHTML = `
+          <div class="empty-state" style="padding: 24px;">
+            <div class="empty-state-icon">⚠️</div>
+            <div class="empty-state-title">Unable to Load Messages</div>
+            <div class="empty-state-desc">${err.message}</div>
+            <button class="btn btn-primary" onclick="loadMessages()" style="margin-top: 16px;">Retry</button>
+          </div>
+        `;
+      }
+    }
+
+    function appendMessage(message) {
+      const container = document.getElementById('chat-messages');
+      const emptyState = container.querySelector('.empty-chat');
+      if (emptyState) emptyState.remove();
+
+      const isGuest = message.sender_type === 'guest';
+      const time = new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${isGuest ? 'guest' : 'admin'}`;
+      msgDiv.innerHTML = `
+        <div class="message-header">
+          <span class="message-sender">${escapeHtml(message.sender_name)}</span>
+          <span class="message-time">${time}</span>
+        </div>
+        <div class="message-bubble">
+          ${message.text ? `<div class="message-text">${escapeHtml(message.text)}</div>` : ''}
+          ${message.image_url ? `<img src="${escapeHtml(message.image_url)}" class="message-image" onclick="window.open('${escapeHtml(message.image_url)}', '_blank')" alt="Payment proof">` : ''}
+        </div>
+      `;
+      container.appendChild(msgDiv);
+      scrollToBottom();
+    }
+
+    function removeEmptyState() {
+      const emptyState = document.getElementById('chat-messages').querySelector('.empty-chat');
+      if (emptyState) emptyState.remove();
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('chat-messages');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const textInput = document.getElementById('message-text');
+      const fileInput = document.getElementById('message-file');
+      const sendBtn = document.getElementById('send-btn');
+      const indicator = document.getElementById('sending-indicator');
+
+      const text = textInput.value.trim();
+      const file = fileInput.files[0];
+
+      if (!text && !file) return;
+
+      sendBtn.disabled = true;
+      indicator.style.display = 'block';
+      indicator.textContent = file ? 'Uploading image...' : 'Sending...';
+
+      try {
+        let imageUrl = null;
+
+        if (file) {
+          if (!isAdmin) {
+            showAlert('Only staff can upload images.', 'error');
+            return;
+          }
+          const tempMessageId = crypto.randomUUID();
+          imageUrl = await uploadPaymentProof(file, bookingId, tempMessageId);
+        }
+
+        const senderName = isAdmin ? 'Staff' : currentBooking.guest_name;
+        const senderType = isAdmin ? 'admin' : 'guest';
+
+        await sendMessage(bookingId, senderType, senderName, text || ' ', imageUrl);
+        textInput.value = '';
+        fileInput.value = '';
+      } catch (err) {
+        showAlert('Failed to send message: ' + err.message, 'error');
+      } finally {
+        sendBtn.disabled = false;
+        indicator.style.display = 'none';
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.getElementById('message-text').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (messagesChannel) supabaseClient.removeChannel(messagesChannel);
+    });
+  </script>
+</body>
+</html>

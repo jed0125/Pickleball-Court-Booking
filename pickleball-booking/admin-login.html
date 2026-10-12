@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login · Pickleball courts</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <div class="login-card">
+      <div class="login-brand">
+        <a href="index-dashboard.html" class="nav-brand" aria-label="Pickleball courts - Home">
+          <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+          <span class="nav-wordmark">Pickleball courts</span>
+        </a>
+        <span class="admin-tag">Admin</span>
+      </div>
+
+      <div class="login-header">
+        <h1>Sign in</h1>
+        <p>Enter your credentials to access the admin panel.</p>
+      </div>
+
+      <div id="alert-container"></div>
+
+      <form id="login-form" class="login-form" novalidate>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input class="input-field" type="email" id="email" name="email" required autocomplete="email" placeholder="admin@example.com" aria-required="true">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input class="input-field" type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••" aria-required="true">
+        </div>
+
+        <button type="submit" class="btn btn-primary login-submit">Sign in →</button>
+      </form>
+
+      <a href="index-dashboard.html" class="login-back">← Back to home</a>
+      </div>
+
+      <p class="login-link">
+        Don't have an account? <a href="admin-register.html">Create one</a>
+      </p>
+
+    <p class="login-footnote">Pickleball courts · Staff access only</p>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    const form = document.getElementById('login-form');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const submitBtn = form.querySelector('button[type="submit"]');
+
+      if (!email || !password) {
+        showAlert('Please enter both email and password.', 'error');
+        return;
+      }
+
+      showLoading(submitBtn);
+
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+        if (error) throw error;
+
+        const { data: profile } = await supabaseClient.from('profiles').select('is_admin').eq('id', data.user.id).single();
+
+        if (!profile?.is_admin) {
+          await supabaseClient.auth.signOut();
+          throw new Error('Access denied. Admin privileges required.');
+        }
+
+        hideLoading(submitBtn);
+        window.location.href = 'admin.html';
+      } catch (err) {
+        hideLoading(submitBtn);
+        let message = err.message;
+        if (err.message.includes('Invalid login credentials')) {
+          message = 'Invalid email or password. Please try again.';
+        } else if (err.message.includes('Email not confirmed')) {
+          message = 'Please confirm your email address before signing in.';
+        } else if (err.message.includes('Too many requests')) {
+          message = 'Too many login attempts. Please wait a moment and try again.';
+        }
+        showAlert(message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

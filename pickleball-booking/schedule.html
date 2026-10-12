@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book a court · Pickleball courts</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header id="top-nav"></header>
+
+  <main class="booking-flow-shell">
+    <div class="booking-stepper" id="booking-stepper" aria-label="Booking progress">
+      <div class="booking-step current" data-step="1">
+        <span class="step-circle">1</span>
+        <span class="step-label">Choose a slot</span>
+      </div>
+      <div class="step-connector" aria-hidden="true"></div>
+      <div class="booking-step upcoming" data-step="2">
+        <span class="step-circle">2</span>
+        <span class="step-label">Your details</span>
+      </div>
+      <div class="step-connector" aria-hidden="true"></div>
+      <div class="booking-step upcoming" data-step="3">
+        <span class="step-circle">3</span>
+        <span class="step-label">Confirmation</span>
+      </div>
+    </div>
+
+    <!-- STEP 1: Choose a slot -->
+    <div class="booking-step-panel active" data-panel="1">
+      <div class="booking-layout">
+        <div class="booking-content">
+          <div class="booking-header">
+            <h1>Make time for a good game.</h1>
+            <p>Pick a date, then choose an available court and time.</p>
+          </div>
+
+          <div class="week-strip">
+            <div class="week-header">
+              <div class="week-label" id="week-label">October 2026</div>
+              <div class="date-nav-arrows">
+                <button class="btn btn-outline btn-sm" id="prev-week" type="button" aria-label="Previous week">‹</button>
+                <button class="btn btn-outline btn-sm" id="next-week" type="button" aria-label="Next week">›</button>
+              </div>
+            </div>
+            <div class="date-strip" id="date-strip"></div>
+          </div>
+
+          <div class="slots-section">
+            <div class="slots-header">
+              <div class="slots-title" id="slot-title">Pick a slot</div>
+              <div class="slots-tz">All times in Philippine time</div>
+            </div>
+            <div id="slot-groups"></div>
+            <div class="slot-legend">
+              <span class="legend-item"><span class="legend-dot available"></span> Available</span>
+              <span class="legend-item"><span class="legend-dot selected"></span> Selected</span>
+              <span class="legend-item"><span class="legend-dot unavailable"></span> Unavailable</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="summary-card" aria-live="polite">
+          <h3>Your court time</h3>
+          <div class="court-illustration">
+            <svg class="court-svg" viewBox="0 0 260 170" aria-hidden="true">
+              <rect x="20" y="20" width="220" height="130" rx="4" class="court-outline"></rect>
+              <rect x="36" y="36" width="80" height="98" rx="2" class="court-lane" id="court-lane-1"></rect>
+              <rect x="144" y="36" width="80" height="98" rx="2" class="court-lane" id="court-lane-2"></rect>
+              <line x1="130" y1="28" x2="130" y2="142" class="court-net" stroke-dasharray="4 4"></line>
+              <line x1="36" y1="85" x2="116" y2="85" class="court-net" opacity="0.5"></line>
+              <line x1="144" y1="85" x2="224" y2="85" class="court-net" opacity="0.5"></line>
+            </svg>
+          </div>
+
+          <div class="summary-list">
+            <div class="summary-row"><span>Court</span><span class="value" id="summary-court">—</span></div>
+            <div class="summary-row"><span>Date</span><span class="value" id="summary-date">—</span></div>
+            <div class="summary-row"><span>Time</span><span class="value" id="summary-time">—</span></div>
+            <div class="summary-row"><span>Duration</span><span class="value" id="summary-duration">1 hour</span></div>
+            <div class="summary-row total"><span>Total</span><span class="value" id="summary-total">PHP 0</span></div>
+          </div>
+
+          <div class="summary-actions">
+            <button class="btn btn-primary" id="continue-btn" type="button" disabled>Continue to booking →</button>
+          </div>
+          <p class="summary-footnote">Your slot is reserved after you confirm your booking.</p>
+        </aside>
+      </div>
+    </div>
+
+    <!-- STEP 2: Your details -->
+    <div class="booking-step-panel" data-panel="2">
+      <div class="details-intro">
+        <h1>A few details, then you’re in.</h1>
+        <p>Tell us who’s playing and how you’d like to pay.</p>
+      </div>
+
+      <div class="booking-layout">
+        <div class="booking-card">
+          <form id="booking-form" class="form-grid" novalidate>
+            <div>
+              <div class="form-section-title">Your details</div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="guest_name">Your name</label>
+                  <input class="input-field" id="guest_name" name="guest_name" type="text" placeholder="Maria Santos" autocomplete="name" required>
+                </div>
+                <div class="form-group">
+                  <label for="guest_phone">Phone number</label>
+                  <input class="input-field" id="guest_phone" name="guest_phone" type="tel" placeholder="Enter your phone number" autocomplete="tel" required>
+                  <div class="helper-text">We’ll use this only for updates about your booking.</div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="form-section-title">Payment method</div>
+              <div class="payment-options" role="radiogroup" aria-label="Payment method">
+                <label class="payment-option selected">
+                  <input type="radio" name="payment_method" value="cash" checked>
+                  <span class="radio-visual" aria-hidden="true"></span>
+                  <span class="option-copy">
+                    <span class="title">Cash at the court</span>
+                    <span class="desc">Pay at the front desk before your game.</span>
+                  </span>
+                  <span class="option-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+                  </span>
+                </label>
+                <label class="payment-option">
+                  <input type="radio" name="payment_method" value="online">
+                  <span class="radio-visual" aria-hidden="true"></span>
+                  <span class="option-copy">
+                    <span class="title">Online (GCash/Maya)</span>
+                    <span class="desc">Send your payment proof in reservation chat.</span>
+                  </span>
+                  <span class="option-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <a href="#" class="form-link" id="back-to-step-1">← Back to schedule</a>
+              <button type="submit" class="btn btn-primary" id="confirm-booking-btn">Confirm booking →</button>
+            </div>
+          </form>
+        </div>
+
+        <aside class="summary-card warm">
+          <h3>Your booking</h3>
+          <div class="court-illustration">
+            <svg class="court-svg" viewBox="0 0 260 170" aria-hidden="true">
+              <rect x="20" y="20" width="220" height="130" rx="4" class="court-outline"></rect>
+              <rect x="36" y="36" width="80" height="98" rx="2" class="court-lane" id="details-lane-1"></rect>
+              <rect x="144" y="36" width="80" height="98" rx="2" class="court-lane" id="details-lane-2"></rect>
+              <line x1="130" y1="28" x2="130" y2="142" class="court-net" stroke-dasharray="4 4"></line>
+              <line x1="36" y1="85" x2="116" y2="85" class="court-net" opacity="0.5"></line>
+              <line x1="144" y1="85" x2="224" y2="85" class="court-net" opacity="0.5"></line>
+            </svg>
+          </div>
+
+          <div class="summary-headline" id="details-headline">Court · Time</div>
+          <div class="summary-list">
+            <div class="summary-row"><span>Date</span><span class="value" id="details-date">—</span></div>
+            <div class="summary-row"><span>Duration</span><span class="value">1 hour</span></div>
+            <div class="summary-row"><span>Court rate</span><span class="value" id="details-rate">PHP 500</span></div>
+            <div class="summary-row total"><span>Total to pay</span><span class="value" id="details-total">PHP 500</span></div>
+          </div>
+
+          <div class="summary-note">
+            <span class="summary-note-icon">i</span>
+            <span>Keep your reservation code for check-in. Your payment status will be shown on your reservation.</span>
+          </div>
+          <!-- Hidden fields kept for JS compatibility -->
+          <span id="details-court" hidden></span>
+          <span id="details-time" hidden></span>
+        </aside>
+      </div>
+    </div>
+
+    <!-- STEP 3: Confirmation -->
+    <div class="booking-step-panel" data-panel="3">
+      <div class="confirmation-wrap">
+        <div class="confirmation-hero">
+          <div class="success-mark" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2>Booking confirmed</h2>
+          <p>Your court time is reserved. We’ll see you at the net.</p>
+        </div>
+
+        <div class="confirmation-panel">
+          <div class="confirmation-top">
+            <div class="confirmation-badge" id="confirmation-status">
+              <span class="dot"></span>
+              <span id="confirmation-status-text">Awaiting payment</span>
+            </div>
+            <div class="confirmation-code-label">Your reservation code</div>
+            <div class="confirmation-code-row" style="position:relative">
+              <div class="confirmation-code" id="reservation-code">PK-0000</div>
+              <button class="copy-button" id="copy-code" type="button" aria-label="Copy reservation code">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+              <span class="copy-tooltip" id="copy-tooltip">Copied!</span>
+            </div>
+            <div class="confirmation-code-hint">Show this at the front desk</div>
+          </div>
+
+          <div class="confirmation-body">
+            <div>
+              <div class="confirm-player-name" id="confirm-player">—</div>
+              <div class="confirmation-meta">
+                <div class="confirmation-meta-row">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span id="confirm-court">—</span>
+                </div>
+                <div class="confirmation-meta-row">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                  <span id="confirm-date">—</span>
+                </div>
+                <div class="confirmation-meta-row">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  <span id="confirm-duration">1 hour of court time</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="payment-summary">
+              <div class="summary-head">Payment summary</div>
+              <div class="sum-row"><span>Court booking</span><span id="confirm-rate">PHP 500</span></div>
+              <div class="sum-row total"><span>Total due</span><span id="confirm-total">PHP 500</span></div>
+              <div class="payment-summary-note" id="confirmation-payment-note">Your booking is confirmed; payment is still outstanding.</div>
+            </div>
+          </div>
+
+          <div class="info-banner">
+            <span class="info-banner-icon">i</span>
+            <div>
+              <strong>One last thing before you play</strong>
+              <div id="confirmation-instructions">Pay cash at the court, or send an online payment with GCash/Maya and share your proof in reservation chat.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="confirmation-actions">
+          <a class="btn btn-primary" id="view-reservation-btn" href="my-reservation.html">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            View reservation & chat
+          </a>
+          <button class="btn btn-outline" id="save-receipt-btn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Save receipt
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" data-site-footer></footer>
+
+  <script src="nav.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const PAYMENT_RATE = 500;
+    const state = {
+      weekStart: new Date(),
+      selectedDate: '',
+      courts: [],
+      bookings: [],
+      selectedCourtId: null,
+      selectedTime: null,
+      step: 1,
+      confirmation: null,
+      liveChannel: null
+    };
+
+    const stepPanels = [...document.querySelectorAll('.booking-step-panel')];
+    const stepItems = [...document.querySelectorAll('.booking-step')];
+    const slotGroupsEl = document.getElementById('slot-groups');
+    const dateStripEl = document.getElementById('date-strip');
+    const weekLabelEl = document.getElementById('week-label');
+    const slotTitleEl = document.getElementById('slot-title');
+    const continueBtn = document.getElementById('continue-btn');
+    const formEl = document.getElementById('booking-form');
+    const guestNameInput = document.getElementById('guest_name');
+    const guestPhoneInput = document.getElementById('guest_phone');
+
+    function formatMoney(value) {
+      return `PHP ${Number(value || 0).toLocaleString('en-PH')}`;
+    }
+
+    function setWeekStart(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const offset = (day === 0 ? -6 : 1 - day);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + offset);
+      state.weekStart = d;
+      if (!state.selectedDate) {
+        state.selectedDate = formatDate(d);
+      }
+    }
+
+    function formatDate(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString().split('T')[0];
+    }
+
+    function parseDate(dateStr) {
+      return new Date(dateStr + 'T00:00:00');
+    }
+
+    function fullDateLabel(dateStr) {
+      const d = parseDate(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function monthLabel(dateObj) {
+      return dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    function dateChip(date) {
+      return {
+        day: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+        date: String(date.getDate())
+      };
+    }
+
+    function formatSlotLabel(time) {
+      const [h] = time.split(':').map(Number);
+      const end = h + 1;
+      const fmt = (hour) => {
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const display = hour % 12 || 12;
+        return { display, period };
+      };
+      const startF = fmt(h);
+      const endF = fmt(end);
+      if (startF.period === endF.period) {
+        return `${startF.display}–${endF.display} ${endF.period}`;
+      }
+      return `${startF.display} ${startF.period}–${endF.display} ${endF.period}`;
+    }
+
+    function shortDateLabel(dateStr) {
+      const d = parseDate(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function updateStepper(step) {
+      state.step = step;
+      stepItems.forEach((item) => {
+        const itemStep = Number(item.dataset.step);
+        item.classList.remove('complete', 'current', 'upcoming');
+        const circle = item.querySelector('.step-circle');
+        if (itemStep < step) {
+          item.classList.add('complete');
+          circle.textContent = '✓';
+        } else if (itemStep === step) {
+          item.classList.add('current');
+          circle.textContent = String(itemStep);
+        } else {
+          item.classList.add('upcoming');
+          circle.textContent = String(itemStep);
+        }
+      });
+    }
+
+    function goToStep(nextStep) {
+      const currentPanel = document.querySelector('.booking-step-panel.active');
+      const nextPanel = document.querySelector(`.booking-step-panel[data-panel="${nextStep}"]`);
+
+      if (currentPanel && currentPanel !== nextPanel) {
+        currentPanel.classList.remove('active');
+        currentPanel.style.display = 'none';
+        nextPanel.style.display = 'block';
+        nextPanel.classList.add('active');
+      } else if (nextPanel) {
+        stepPanels.forEach((panel) => panel.classList.remove('active'));
+        nextPanel.classList.add('active');
+        nextPanel.style.display = 'block';
+      }
+
+      updateStepper(nextStep);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateSummaryDisplay() {
+      const court = state.courts.find((c) => c.id === state.selectedCourtId) || null;
+      const dateObj = state.selectedDate ? parseDate(state.selectedDate) : null;
+      const timeLabel = state.selectedTime ? formatSlotLabel(state.selectedTime) : '—';
+      const details = {
+        court: court ? court.name : '—',
+        date: dateObj ? shortDateLabel(state.selectedDate) : '—',
+        time: timeLabel,
+        total: state.selectedCourtId && state.selectedTime ? formatMoney(PAYMENT_RATE) : 'PHP 0'
+      };
+
+      document.getElementById('summary-court').textContent = details.court;
+      document.getElementById('summary-date').textContent = details.date;
+      document.getElementById('summary-time').textContent = details.time;
+      document.getElementById('summary-total').textContent = details.total;
+
+      document.getElementById('details-court').textContent = details.court;
+      document.getElementById('details-date').textContent = details.date;
+      document.getElementById('details-time').textContent = details.time;
+      document.getElementById('details-rate').textContent = formatMoney(PAYMENT_RATE);
+      document.getElementById('details-total').textContent = details.total === 'PHP 0' ? formatMoney(PAYMENT_RATE) : details.total;
+      document.getElementById('details-headline').textContent =
+        court && state.selectedTime ? `${details.court} · ${details.time}` : 'Select a court & time';
+
+      const lane1 = document.getElementById('court-lane-1');
+      const lane2 = document.getElementById('court-lane-2');
+      const lane1b = document.getElementById('details-lane-1');
+      const lane2b = document.getElementById('details-lane-2');
+
+      const activeIndex = court ? (state.courts.findIndex((c) => c.id === court.id) % 2) : -1;
+      [lane1, lane2, lane1b, lane2b].forEach((lane) => lane && lane.classList.remove('active'));
+      if (court && activeIndex >= 0) {
+        const activeLane = activeIndex === 0 ? lane1 : lane2;
+        const activeLaneB = activeIndex === 0 ? lane1b : lane2b;
+        activeLane && activeLane.classList.add('active');
+        activeLaneB && activeLaneB.classList.add('active');
+      }
+
+      continueBtn.disabled = !(state.selectedCourtId && state.selectedTime);
+    }
+
+    function renderDateStrip() {
+      const dates = [];
+      const base = new Date(state.weekStart);
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(base);
+        d.setDate(base.getDate() + i);
+        dates.push(d);
+      }
+
+      dateStripEl.innerHTML = dates.map((date) => {
+        const isSelected = formatDate(date) === state.selectedDate;
+        const labels = dateChip(date);
+        return `
+          <button class="date-pill ${isSelected ? 'selected' : ''}" type="button" data-date="${formatDate(date)}" aria-pressed="${isSelected}">
+            <span class="day">${labels.day}</span>
+            <span class="date-num">${labels.date}</span>
+          </button>
+        `;
+      }).join('');
+
+      weekLabelEl.textContent = monthLabel(dates[0]);
+
+      document.querySelectorAll('.date-pill').forEach((pill) => {
+        pill.addEventListener('click', () => {
+          state.selectedDate = pill.dataset.date;
+          renderDateStrip();
+          renderAvailableSlots();
+          updateSummaryDisplay();
+        });
+      });
+    }
+
+    function renderAvailableSlots() {
+      const selectedDateStr = state.selectedDate || formatDate(new Date());
+      slotTitleEl.textContent = `${fullDateLabel(selectedDateStr)} · Pick a slot`;
+
+      const bookedSet = new Set();
+      state.bookings
+        .filter((booking) => booking.date === selectedDateStr)
+        .forEach((booking) => bookedSet.add(`${booking.court_id}-${booking.time_slot}`));
+
+      if (!state.courts.length) {
+        slotGroupsEl.innerHTML = '<div class="empty-state"><div class="empty-state-title">No courts available</div><div class="empty-state-desc">Please contact the venue.</div></div>';
+        return;
+      }
+
+      // Show morning slots prominently to match the design; keep full day available
+      const slots = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
+
+      slotGroupsEl.innerHTML = state.courts.map((court) => {
+        const buttons = slots.map((time) => {
+          const isBooked = bookedSet.has(`${court.id}-${time}`);
+          const isSelected = state.selectedCourtId === court.id && state.selectedTime === time;
+          let status = 'Available';
+          if (isBooked) status = 'Unavailable';
+          else if (isSelected) status = 'Selected';
+          return `
+            <button class="slot-button ${isSelected ? 'selected' : ''}" type="button" data-court-id="${court.id}" data-time="${time}" ${isBooked ? 'disabled' : ''}>
+              <span>${formatSlotLabel(time)}</span>
+              <span class="slot-status">${status}</span>
+            </button>
+          `;
+        }).join('');
+
+        return `
+          <div class="court-group">
+            <div class="court-group-header">
+              <span class="court-group-title">${escapeHtml(court.name)}</span>
+              <span class="court-group-rate">PHP ${PAYMENT_RATE} / hour</span>
+            </div>
+            <div class="time-slot-row">${buttons}</div>
+          </div>
+        `;
+      }).join('');
+
+      slotGroupsEl.querySelectorAll('.slot-button').forEach((button) => {
+        button.addEventListener('click', () => {
+          state.selectedCourtId = Number(button.dataset.courtId);
+          state.selectedTime = button.dataset.time;
+          button.classList.add('is-pulse');
+          setTimeout(() => button.classList.remove('is-pulse'), 220);
+          renderAvailableSlots();
+          updateSummaryDisplay();
+        });
+      });
+    }
+
+    function escapeHtml(value) {
+      const div = document.createElement('div');
+      div.textContent = value;
+      return div.innerHTML;
+    }
+
+    async function loadCourtsAndSchedule() {
+      try {
+        state.courts = await fetchCourts();
+        const bookings = await fetchBookingsForDate(state.selectedDate || formatDate(new Date()));
+        state.bookings = bookings;
+        renderDateStrip();
+        renderAvailableSlots();
+        updateSummaryDisplay();
+      } catch (err) {
+        slotGroupsEl.innerHTML = `<div class="empty-state"><div class="empty-state-title">Unable to load schedule</div><div class="empty-state-desc">${escapeHtml(err.message)}</div></div>`;
+      }
+    }
+
+    function hydrateSelectionFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const courtId = params.get('court_id');
+      const date = params.get('date');
+      const time = params.get('time_slot');
+      if (courtId && date && time) {
+        state.selectedCourtId = Number(courtId);
+        state.selectedDate = date;
+        state.selectedTime = time;
+      }
+    }
+
+    function setupRealtimeSchedule() {
+      if (!supabaseClient) return;
+      state.liveChannel = supabaseClient
+        .channel('schedule-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+          fetchBookingsForDate(state.selectedDate || formatDate(new Date()))
+            .then((bookings) => {
+              state.bookings = bookings;
+              renderAvailableSlots();
+              updateSummaryDisplay();
+            })
+            .catch(() => {});
+        })
+        .subscribe();
+    }
+
+    function setPaymentSelection() {
+      document.querySelectorAll('.payment-option').forEach((option) => {
+        const radio = option.querySelector('input[type="radio"]');
+        option.classList.toggle('selected', radio.checked);
+      });
+    }
+
+    function updateFormSummary() {
+      updateSummaryDisplay();
+    }
+
+    function renderConfirmation() {
+      const booking = state.confirmation;
+      if (!booking) return;
+
+      const dateObj = parseDate(booking.date);
+      const paymentMethod = booking.payment_method;
+      const statusText = 'Awaiting payment';
+      const timeLabel = formatSlotLabel(booking.time_slot || state.selectedTime);
+      const courtName = booking.courts?.name || 'Court';
+      const instructions = paymentMethod === 'cash'
+        ? 'Pay cash at the court, or send an online payment with GCash/Maya and share your proof in reservation chat.'
+        : 'Send your payment via GCash or Maya and share your proof in reservation chat.';
+
+      document.getElementById('reservation-code').textContent = booking.booking_code;
+      document.getElementById('confirmation-status-text').textContent = statusText;
+      document.getElementById('confirm-player').textContent = booking.guest_name;
+      document.getElementById('confirm-court').textContent = `${courtName} · ${timeLabel}`;
+      document.getElementById('confirm-date').textContent = shortDateLabel(booking.date);
+      document.getElementById('confirm-duration').textContent = '1 hour of court time';
+      document.getElementById('confirm-rate').textContent = formatMoney(PAYMENT_RATE);
+      document.getElementById('confirm-total').textContent = formatMoney(PAYMENT_RATE);
+      document.getElementById('confirmation-instructions').textContent = instructions;
+      document.getElementById('view-reservation-btn').href = `my-reservation.html?ref=${encodeURIComponent(booking.booking_code)}`;
+
+      if (window.PBNav) window.PBNav.render();
+    }
+
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const guestName = guestNameInput.value.trim();
+      const guestPhone = guestPhoneInput.value.trim();
+      const paymentMethod = formEl.querySelector('input[name="payment_method"]:checked')?.value || 'cash';
+
+      if (!guestName || !guestPhone || !state.selectedCourtId || !state.selectedTime || !state.selectedDate) {
+        showAlert('Please choose a slot and complete your details.', 'error');
+        return;
+      }
+
+      const submitBtn = document.getElementById('confirm-booking-btn');
+      showLoading(submitBtn);
+
+      try {
+        const status = paymentMethod === 'cash' ? 'awaiting_cash_payment' : 'awaiting_payment';
+        const booking = await createBooking({
+          court_id: state.selectedCourtId,
+          date: state.selectedDate,
+          time_slot: state.selectedTime,
+          guest_name: guestName,
+          guest_phone: guestPhone,
+          payment_method: paymentMethod,
+          status
+        });
+
+        const court = state.courts.find((item) => item.id === state.selectedCourtId);
+        state.confirmation = {
+          ...booking,
+          courts: { name: court ? court.name : 'Court' },
+          guest_name: guestName,
+          guest_phone: guestPhone,
+          payment_method: paymentMethod,
+          time_slot: state.selectedTime
+        };
+
+        try {
+          localStorage.setItem('pb_guest', JSON.stringify({ name: guestName, reservation_code: booking.booking_code }));
+        } catch (error) { /* ignore */ }
+
+        hideLoading(submitBtn);
+        renderConfirmation();
+        goToStep(3);
+      } catch (err) {
+        hideLoading(submitBtn);
+        showAlert('Booking failed: ' + err.message, 'error');
+      }
+    }
+
+    function attachListeners() {
+      document.getElementById('prev-week').addEventListener('click', () => {
+        const d = new Date(state.weekStart);
+        d.setDate(d.getDate() - 7);
+        setWeekStart(d);
+        state.selectedDate = formatDate(d);
+        renderDateStrip();
+        renderAvailableSlots();
+        updateSummaryDisplay();
+      });
+
+      document.getElementById('next-week').addEventListener('click', () => {
+        const d = new Date(state.weekStart);
+        d.setDate(d.getDate() + 7);
+        setWeekStart(d);
+        state.selectedDate = formatDate(d);
+        renderDateStrip();
+        renderAvailableSlots();
+        updateSummaryDisplay();
+      });
+
+      continueBtn.addEventListener('click', () => {
+        if (!state.selectedCourtId || !state.selectedTime) return;
+        updateFormSummary();
+        goToStep(2);
+      });
+
+      document.getElementById('back-to-step-1').addEventListener('click', (e) => {
+        e.preventDefault();
+        goToStep(1);
+      });
+
+      document.querySelectorAll('input[name="payment_method"]').forEach((radio) => {
+        radio.addEventListener('change', setPaymentSelection);
+      });
+
+      formEl.addEventListener('submit', handleSubmit);
+
+      document.getElementById('copy-code').addEventListener('click', async () => {
+        const code = document.getElementById('reservation-code').textContent;
+        try {
+          await navigator.clipboard.writeText(code);
+          const tooltip = document.getElementById('copy-tooltip');
+          tooltip.classList.add('visible');
+          setTimeout(() => tooltip.classList.remove('visible'), 1200);
+        } catch (error) {
+          showAlert('Unable to copy the reservation code.', 'info');
+        }
+      });
+
+      document.getElementById('save-receipt-btn').addEventListener('click', () => {
+        const code = state.confirmation?.booking_code;
+        if (code) {
+          window.location.href = `receipt.html?ref=${encodeURIComponent(code)}`;
+        } else {
+          window.print();
+        }
+      });
+    }
+
+    async function initBookingFlow() {
+      hydrateSelectionFromQuery();
+      const now = new Date();
+      setWeekStart(now);
+      if (!state.selectedDate) state.selectedDate = formatDate(now);
+      await loadCourtsAndSchedule();
+      setPaymentSelection();
+      updateStepper(1);
+      updateSummaryDisplay();
+      attachListeners();
+      setupRealtimeSchedule();
+
+      const detailPanel = document.querySelector('.booking-step-panel[data-panel="2"]');
+      const confirmationPanel = document.querySelector('.booking-step-panel[data-panel="3"]');
+      if (detailPanel) detailPanel.style.display = 'none';
+      if (confirmationPanel) confirmationPanel.style.display = 'none';
+    }
+
+    window.addEventListener('load', () => {
+      if (typeof initSupabase === 'function' && typeof supabaseClient !== 'undefined' && !supabaseClient) initSupabase();
+      else if (typeof initSupabase === 'function') initSupabase();
+      initBookingFlow();
+    });
+  </script>
+</body>
+</html>
