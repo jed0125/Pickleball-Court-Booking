@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My reservation · Pickleball courts</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header id="top-nav"></header>
+
+  <main class="reservation-shell">
+    <div id="alert-container"></div>
+
+    <div id="lookup-shell" class="lookup-shell" style="display: none;">
+      <div class="lookup-card card">
+        <div class="eyebrow-tag">Reservation lookup</div>
+        <h1>Enter your reservation code</h1>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">Use the code from your confirmation to view booking details and chat with the front desk.</p>
+        <form id="lookup-form" class="lookup-form">
+          <input id="lookup-code" type="text" class="input-field" placeholder="PK-4Q7X" aria-label="Reservation code" maxlength="16">
+          <button type="submit" class="btn btn-primary">Find reservation</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="reservation-page" style="display: none;">
+      <div class="reservation-topbar">
+        <div class="reservation-topbar-copy">
+          <div class="eyebrow-tag" id="reservation-eyebrow">RESERVATION PK-4Q7X</div>
+          <h1>Your game, all in one place.</h1>
+          <p>Track your booking and stay in touch with the front desk.</p>
+        </div>
+        <a class="btn btn-outline" id="receipt-link" href="#">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          View receipt
+        </a>
+      </div>
+
+      <div class="reservation-layout">
+        <div class="reservation-sidebar">
+          <aside class="reservation-card card">
+            <div class="reservation-card-top">
+              <h3>Your reservation</h3>
+              <span class="status-pill" id="status-pill">
+                <span class="status-dot"></span>
+                <span id="status-label">Pending</span>
+              </span>
+            </div>
+
+            <div class="reservation-court-visual">
+              <svg class="court-svg" viewBox="0 0 260 170" aria-hidden="true">
+                <rect x="20" y="20" width="220" height="130" rx="4" class="court-outline"></rect>
+                <rect x="36" y="36" width="80" height="98" rx="2" class="court-lane active" id="reservation-lane-1"></rect>
+                <rect x="144" y="36" width="80" height="98" rx="2" class="court-lane" id="reservation-lane-2"></rect>
+                <line x1="130" y1="28" x2="130" y2="142" class="court-net" stroke-dasharray="4 4"></line>
+                <line x1="36" y1="85" x2="116" y2="85" class="court-net" opacity="0.5"></line>
+                <line x1="144" y1="85" x2="224" y2="85" class="court-net" opacity="0.5"></line>
+              </svg>
+            </div>
+
+            <div class="reservation-slot-title" id="detail-slot">Court · Time</div>
+
+            <div class="reservation-details">
+              <div class="reservation-row"><span>Player</span><strong id="detail-player">—</strong></div>
+              <div class="reservation-row"><span>Date</span><strong id="detail-date">—</strong></div>
+              <div class="reservation-row"><span>Reservation</span><strong id="detail-code">—</strong></div>
+            </div>
+
+            <div class="reservation-total">
+              <span>Booking total</span>
+              <strong id="detail-total">PHP 500</strong>
+            </div>
+            <span id="detail-court" hidden></span>
+          </aside>
+
+          <div class="status-card" id="reservation-note-card">
+            <div class="status-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <div>
+              <strong id="reservation-note-title">Payment under review</strong>
+              <div id="reservation-note">Your status stays Pending until the front desk verifies your payment. You can ask for an update here.</div>
+            </div>
+          </div>
+        </div>
+
+        <section class="chat-panel card">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <div class="chat-header-avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+              </div>
+              <div>
+                <div class="chat-header-label">Front desk</div>
+                <div class="chat-header-sub">Here to help with your reservation</div>
+              </div>
+            </div>
+            <button type="button" class="chat-menu-btn" aria-label="More options">⋯</button>
+          </div>
+
+          <div class="chat-date-divider" id="chat-date-divider">—</div>
+
+          <div class="chat-thread" id="chat-thread" aria-live="polite">
+            <div class="loading-state" style="padding: 24px 12px;">
+              <div class="loading-spinner"></div>
+              <div>Loading messages...</div>
+            </div>
+          </div>
+
+          <div class="chat-input-row">
+            <button id="file-btn" type="button" class="chat-file-button" aria-label="Attach payment proof" title="Attach payment proof">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <input id="message-file" type="file" accept="image/*" hidden>
+            <input id="message-input" type="text" placeholder="Write a message or attach payment proof..." aria-label="Write a message">
+            <button id="send-btn" type="button" class="chat-send-btn">
+              Send
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer" data-site-footer></footer>
+
+  <script src="nav.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const STATUS_META = {
+      awaiting_payment: {
+        label: 'Pending',
+        tone: 'waiting',
+        title: 'Payment under review',
+        note: 'Your status stays Pending until the front desk verifies your payment. You can ask for an update here.'
+      },
+      awaiting_cash_payment: {
+        label: 'Cash due',
+        tone: 'cash',
+        title: 'Cash payment due',
+        note: 'Please pay at the front desk before your session starts. Show your reservation code when you arrive.'
+      },
+      pending_confirmation: {
+        label: 'Pending',
+        tone: 'waiting',
+        title: 'Payment under review',
+        note: 'Your status stays Pending until the front desk verifies your payment. You can ask for an update here.'
+      },
+      confirmed: {
+        label: 'Confirmed',
+        tone: 'confirmed',
+        title: 'You’re all set',
+        note: 'Your booking is confirmed and ready for check-in.'
+      },
+      cancelled: {
+        label: 'Cancelled',
+        tone: 'cancelled',
+        title: 'Reservation cancelled',
+        note: 'This reservation has been cancelled. Please reach out if you need help rebooking.'
+      }
+    };
+
+    const RESERVATION_RATE = 500;
+    const lookupShell = document.getElementById('lookup-shell');
+    const reservationPage = document.getElementById('reservation-page');
+    const chatThread = document.getElementById('chat-thread');
+    let currentBooking = null;
+    let messagesChannel = null;
+
+    function getStoredGuest() {
+      try {
+        const raw = localStorage.getItem('pb_guest');
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function getReservationCodeFromUrl() {
+      return new URLSearchParams(window.location.search).get('ref') ||
+        new URLSearchParams(window.location.search).get('id');
+    }
+
+    function escapeHtml(value) {
+      const div = document.createElement('div');
+      div.textContent = value;
+      return div.innerHTML;
+    }
+
+    function formatMoney(value) {
+      return `PHP ${Number(value || 0).toLocaleString('en-PH')}`;
+    }
+
+    function parseDate(dateStr) {
+      return new Date(dateStr + 'T00:00:00');
+    }
+
+    function formatSlotLabel(time) {
+      if (!time) return '—';
+      const [h] = String(time).split(':').map(Number);
+      const end = h + 1;
+      const fmt = (hour) => {
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const display = hour % 12 || 12;
+        return { display, period };
+      };
+      const startF = fmt(h);
+      const endF = fmt(end);
+      if (startF.period === endF.period) return `${startF.display}–${endF.display} ${endF.period}`;
+      return `${startF.display} ${startF.period}–${endF.display} ${endF.period}`;
+    }
+
+    function updateStatusPill(status) {
+      const meta = STATUS_META[status] || STATUS_META.awaiting_payment;
+      const pill = document.getElementById('status-pill');
+      const label = document.getElementById('status-label');
+      const dot = pill.querySelector('.status-dot');
+      pill.classList.remove('is-waiting', 'is-confirmed', 'is-cancelled', 'is-cash');
+      dot.classList.remove('pulse');
+
+      if (meta.tone === 'waiting') {
+        pill.classList.add('is-waiting');
+        dot.classList.add('pulse');
+      } else if (meta.tone === 'confirmed') {
+        pill.classList.add('is-confirmed');
+      } else if (meta.tone === 'cash') {
+        pill.classList.add('is-cash');
+      } else {
+        pill.classList.add('is-cancelled');
+      }
+
+      label.textContent = meta.label;
+      document.getElementById('reservation-note-title').textContent = meta.title;
+      document.getElementById('reservation-note').textContent = meta.note;
+    }
+
+    function renderBookingSummary(booking) {
+      const courtName = booking.courts?.name || 'Court ' + booking.court_id;
+      const dateObj = parseDate(booking.date);
+      const dateText = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeLabel = formatSlotLabel(booking.time_slot);
+
+      document.getElementById('reservation-eyebrow').textContent = `RESERVATION ${booking.booking_code}`;
+      document.getElementById('detail-court').textContent = courtName;
+      document.getElementById('detail-slot').textContent = `${courtName} · ${timeLabel}`;
+      document.getElementById('detail-player').textContent = booking.guest_name || 'Guest';
+      document.getElementById('detail-date').textContent = dateText;
+      document.getElementById('detail-code').textContent = booking.booking_code;
+      document.getElementById('detail-total').textContent = formatMoney(typeof PAYMENT_AMOUNT !== 'undefined' ? PAYMENT_AMOUNT : RESERVATION_RATE);
+      document.getElementById('receipt-link').href = `receipt.html?ref=${encodeURIComponent(booking.booking_code)}`;
+      document.getElementById('chat-date-divider').textContent = dateText;
+      updateStatusPill(booking.status);
+
+      const lane1 = document.getElementById('reservation-lane-1');
+      const lane2 = document.getElementById('reservation-lane-2');
+      [lane1, lane2].forEach((l) => l && l.classList.remove('active'));
+      if (lane1) lane1.classList.add('active');
+    }
+
+    function renderMessages(messages) {
+      const messageList = messages || [];
+      chatThread.innerHTML = '';
+
+      if (!messageList.length) {
+        chatThread.innerHTML = '<div class="empty-chat">No messages yet. Start the conversation below.</div>';
+        return;
+      }
+
+      messageList.forEach((message) => {
+        const row = document.createElement('div');
+        const isGuest = message.sender_type === 'guest';
+        row.className = `message-row ${isGuest ? 'guest' : 'admin'}`;
+
+        const sender = document.createElement('div');
+        sender.className = 'message-sender';
+        sender.textContent = message.sender_name || (isGuest ? 'You' : 'Front desk');
+
+        const bubble = document.createElement('div');
+        bubble.className = `message-bubble ${isGuest ? 'guest' : 'admin'}`;
+
+        if (message.text && message.text.trim()) {
+          const text = document.createElement('div');
+          text.className = 'message-text';
+          text.innerHTML = escapeHtml(message.text);
+          bubble.appendChild(text);
+        }
+
+        if (message.image_url) {
+          const artifact = document.createElement('a');
+          artifact.className = 'file-card' + (isGuest ? ' standalone' : '');
+          artifact.href = message.image_url;
+          artifact.target = '_blank';
+          artifact.rel = 'noopener noreferrer';
+          artifact.innerHTML = `
+            <span class="file-card-icon">⬇</span>
+            <span class="file-card-copy">
+              <span class="file-card-title">proof.jpg</span>
+              <span class="file-card-subtitle">Image attachment</span>
+            </span>
+          `;
+          if (isGuest) {
+            row.appendChild(sender);
+            row.appendChild(bubble);
+            row.appendChild(artifact);
+          } else {
+            bubble.appendChild(artifact);
+            row.appendChild(sender);
+            row.appendChild(bubble);
+          }
+        } else {
+          row.appendChild(sender);
+          row.appendChild(bubble);
+        }
+
+        chatThread.appendChild(row);
+      });
+
+      const lastMessage = chatThread.querySelector('.message-row:last-child');
+      if (lastMessage) lastMessage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function showLookupForm() {
+      lookupShell.style.display = 'flex';
+      reservationPage.style.display = 'none';
+    }
+
+    function showReservationPage() {
+      lookupShell.style.display = 'none';
+      reservationPage.style.display = 'block';
+    }
+
+    async function loadBooking(code) {
+      try {
+        currentBooking = await fetchBookingByCode(code);
+        renderBookingSummary(currentBooking);
+        showReservationPage();
+        const messages = await fetchMessages(currentBooking.id);
+        renderMessages(messages);
+        setupChat(currentBooking.id);
+        updateUploadVisibility();
+        if (window.PBNav) window.PBNav.render();
+      } catch (err) {
+        showAlert('Reservation not found. Please check the code and try again.', 'error');
+        showLookupForm();
+      }
+    }
+
+    function setupChat(bookingId) {
+      if (messagesChannel) supabaseClient.removeChannel(messagesChannel);
+      messagesChannel = subscribeToMessages(bookingId, () => {
+        fetchMessages(bookingId).then(renderMessages).catch(() => {});
+      });
+    }
+
+    async function handleSendMessage() {
+      if (!currentBooking) return;
+      const input = document.getElementById('message-input');
+      const fileInput = document.getElementById('message-file');
+      const text = input.value.trim();
+      const file = fileInput.files[0];
+      if (!text && !file) return;
+
+      const sendBtn = document.getElementById('send-btn');
+      sendBtn.disabled = true;
+
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        let isAdmin = false;
+        if (user) {
+          const profile = await supabaseClient.from('profiles').select('is_admin').eq('id', user.id).single();
+          isAdmin = !!profile.data?.is_admin;
+        }
+
+        let imageUrl = null;
+        if (file) {
+          const msgId = crypto.randomUUID();
+          imageUrl = await uploadPaymentProof(file, currentBooking.id, msgId);
+        }
+
+        await sendMessage(
+          currentBooking.id,
+          isAdmin ? 'admin' : 'guest',
+          isAdmin ? 'Front desk' : currentBooking.guest_name,
+          text || (file ? 'Payment proof attached' : ' '),
+          imageUrl
+        );
+        input.value = '';
+        fileInput.value = '';
+        input.placeholder = 'Write a message or attach payment proof...';
+        const messages = await fetchMessages(currentBooking.id);
+        renderMessages(messages);
+      } catch (err) {
+        showAlert('Failed to send message: ' + err.message, 'error');
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    function updateUploadVisibility() {
+      const fileBtn = document.getElementById('file-btn');
+      // Guests can attach payment proof per the design
+      fileBtn.style.display = 'inline-flex';
+      document.getElementById('message-file').hidden = false;
+    }
+
+    document.getElementById('lookup-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const code = document.getElementById('lookup-code').value.trim();
+      if (!code) {
+        showAlert('Please enter your reservation code.', 'error');
+        return;
+      }
+      loadBooking(code);
+    });
+
+    document.getElementById('send-btn').addEventListener('click', handleSendMessage);
+    document.getElementById('message-input').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleSendMessage();
+      }
+    });
+    document.getElementById('file-btn').addEventListener('click', () => document.getElementById('message-file').click());
+    document.getElementById('message-file').addEventListener('change', () => {
+      const file = document.getElementById('message-file').files[0];
+      if (file) document.getElementById('message-input').placeholder = `Attach: ${file.name}`;
+    });
+
+    async function initReservationPage() {
+      if (typeof initSupabase === 'function') initSupabase();
+
+      const urlCode = getReservationCodeFromUrl();
+      const storedGuest = getStoredGuest();
+      const fallbackCode = storedGuest?.reservation_code || '';
+      const requestedCode = urlCode || fallbackCode;
+
+      if (!requestedCode) {
+        showLookupForm();
+        return;
+      }
+
+      await loadBooking(requestedCode);
+    }
+
+    initReservationPage();
+  </script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Receipt - Pickleball Booking</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <main class="receipt-container">
+    <div id="alert-container"></div>
+
+    <div class="receipt-header">
+      <a href="index.html" class="logo">Pickleball<span>Court</span></a>
+      <h2 style="color: var(--primary); margin-top: 16px;">Booking Confirmed</h2>
+    </div>
+
+    <div class="receipt-details" id="receipt-content">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div>Loading booking details...</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 24px;">
+      <a href="index.html" class="btn btn-primary">Back to Home</a>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    const bookingCode = getUrlParam('ref');
+    const contentEl = document.getElementById('receipt-content');
+
+    if (!bookingCode) {
+      showAlert('Invalid receipt link. No booking code provided.', 'error');
+      contentEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🔗</div>
+          <div class="empty-state-title">Invalid Receipt Link</div>
+          <div class="empty-state-desc">No booking code was provided in the URL.</div>
+          <a href="index.html" class="btn btn-primary" style="margin-top: 16px;">Back to Home</a>
+        </div>
+      `;
+    } else {
+      loadReceipt();
+    }
+
+    async function loadReceipt() {
+      try {
+        const booking = await fetchBookingByCode(bookingCode);
+        const dateObj = parseDate(booking.date);
+
+        const statusBadges = {
+          'awaiting_cash_payment': 'badge-awaiting_cash_payment',
+          'awaiting_payment': 'badge-awaiting_payment',
+          'pending_confirmation': 'badge-pending_confirmation',
+          'confirmed': 'badge-confirmed',
+          'cancelled': 'badge-cancelled'
+        };
+
+        const statusLabels = {
+          'awaiting_cash_payment': 'Awaiting Cash Payment',
+          'awaiting_payment': 'Awaiting Payment',
+          'pending_confirmation': 'Pending Confirmation',
+          'confirmed': 'Confirmed',
+          'cancelled': 'Cancelled'
+        };
+
+        contentEl.innerHTML = `
+          <div class="receipt-row">
+            <span class="label">Booking Code</span>
+            <span class="value" style="font-family: monospace; font-size: 1.25rem; letter-spacing: 1px;">${booking.booking_code}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Court</span>
+            <span class="value">${escapeHtml(booking.courts?.name || 'Court ' + booking.court_id)}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Date</span>
+            <span class="value">${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Time</span>
+            <span class="value">${booking.time_slot}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Guest Name</span>
+            <span class="value">${escapeHtml(booking.guest_name)}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Phone</span>
+            <span class="value">${escapeHtml(booking.guest_phone)}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="label">Payment</span>
+            <span class="value">${booking.payment_method === 'cash' ? 'Cash at Court' : 'Online (GCash/Maya)'}</span>
+          </div>
+          <div class="receipt-status">
+            <span class="badge ${statusBadges[booking.status] || ''}">${statusLabels[booking.status] || booking.status}</span>
+          </div>
+        `;
+
+        if (booking.payment_method === 'cash' && booking.status === 'awaiting_cash_payment') {
+          const note = document.createElement('div');
+          note.style.marginTop = '20px';
+          note.style.padding = '16px';
+          note.style.background = '#fff3cd';
+          note.style.borderRadius = 'var(--radius)';
+          note.style.color = '#856404';
+          note.innerHTML = '<strong>⚠ Pay at Court:</strong> Please pay the staff when you arrive. Show this screen at the front desk.';
+          contentEl.appendChild(note);
+        }
+      } catch (err) {
+        showAlert('Booking not found: ' + err.message, 'error');
+        contentEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <div class="empty-state-title">Booking Not Found</div>
+            <div class="empty-state-desc">No booking exists with code <strong>${escapeHtml(bookingCode)}</strong>. Please check the code and try again.</div>
+            <a href="index.html" class="btn btn-primary" style="margin-top: 16px;">Back to Home</a>
+          </div>
+        `;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

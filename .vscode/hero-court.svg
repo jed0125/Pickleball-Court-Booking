@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#E8DCC8"/>
+  
+  <!-- Court outer boundary -->
+  <rect x="80" y="60" width="640" height="480" fill="none" stroke="#2C5745" stroke-width="4"/>
+  
+  <!-- Court surface -->
+  <rect x="84" y="64" width="632" height="472" fill="#D4A574"/>
+  
+  <!-- Service areas -->
+  <rect x="84" y="64" width="316" height="216" fill="none" stroke="#B8956A" stroke-width="2" stroke-dasharray="8,4"/>
+  <rect x="400" y="64" width="316" height="216" fill="none" stroke="#B8956A" stroke-width="2" stroke-dasharray="8,4"/>
+  <rect x="84" y="320" width="316" height="216" fill="none" stroke="#B8956A" stroke-width="2" stroke-dasharray="8,4"/>
+  <rect x="400" y="320" width="316" height="216" fill="none" stroke="#B8956A" stroke-width="2" stroke-dasharray="8,4"/>
+  
+  <!-- Center line -->
+  <line x1="400" y1="64" x2="400" y2="536" stroke="#B8956A" stroke-width="2" stroke-dasharray="8,4"/>
+  
+  <!-- Non-volley zone (kitchen) -->
+  <rect x="84" y="272" width="632" height="56" fill="#C8905A" opacity="0.3"/>
+  <line x1="84" y1="272" x2="716" y2="272" stroke="#B8956A" stroke-width="2"/>
+  <line x1="84" y1="328" x2="716" y2="328" stroke="#B8956A" stroke-width="2"/>
+  
+  <!-- Net -->
+  <line x1="80" y1="300" x2="720" y2="300" stroke="#2C5745" stroke-width="6" stroke-linecap="round"/>
+  <line x1="80" y1="300" x2="720" y2="300" stroke="#8B6B4A" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Net posts -->
+  <rect x="74" y="290" width="12" height="20" fill="#5D4037" rx="2"/>
+  <rect x="714" y="290" width="12" height="20" fill="#5D4037" rx="2"/>
+  
+  <!-- Center net strap -->
+  <rect x="398" y="295" width="4" height="10" fill="#FFFFFF" opacity="0.8" rx="2"/>
+  
+  <!-- Subtle pickleball texture dots -->
+  <g fill="#C8905A" opacity="0.15">
+    <circle cx="150" cy="120" r="3"/>
+    <circle cx="250" cy="180" r="2"/>
+    <circle cx="350" cy="140" r="3"/>
+    <circle cx="500" cy="160" r="2"/>
+    <circle cx="600" cy="130" r="3"/>
+    <circle cx="180" cy="380" r="2"/>
+    <circle cx="300" cy="420" r="3"/>
+    <circle cx="450" cy="400" r="2"/>
+    <circle cx="580" cy="430" r="3"/>
+    <circle cx="650" cy="390" r="2"/>
+  </g>
+  
+  <!-- Decorative elements - paddles -->
+  <g transform="translate(100, 500)">
+    <ellipse cx="0" cy="0" rx="35" ry="8" fill="#2C5745" opacity="0.6"/>
+    <rect x="-3" y="-40" width="6" height="40" fill="#5D4037" rx="2"/>
+    <ellipse cx="0" cy="-40" rx="8" ry="8" fill="#5D4037"/>
+  </g>
+  <g transform="translate(700, 500)">
+    <ellipse cx="0" cy="0" rx="35" ry="8" fill="#2C5745" opacity="0.6" transform="rotate(180)"/>
+    <rect x="-3" y="0" width="6" height="40" fill="#5D4037" rx="2"/>
+    <ellipse cx="0" cy="40" rx="8" ry="8" fill="#5D4037"/>
+  </g>
+  
+  <!-- Ball -->
+  <circle cx="400" cy="300" r="18" fill="#FFD700" opacity="0.25"/>
+  <circle cx="400" cy="300" r="16" fill="#FFD700" opacity="0.15"/>
+  <path d="M390 300 Q400 290 410 300" stroke="#F5C000" stroke-width="2" fill="none" opacity="0.3"/>
+  <path d="M390 300 Q400 310 410 300" stroke="#F5C000" stroke-width="2" fill="none" opacity="0.3"/>
+</svg>

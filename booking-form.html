@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Form - Pickleball Booking</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <a href="index.html" class="logo">Pickleball<span>Court</span></a>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="alert-container"></div>
+
+    <div class="card" style="max-width: 600px; margin: 0 auto;">
+      <h2 style="color: var(--primary); margin-bottom: 8px;">Complete Your Booking</h2>
+      <p style="color: var(--text-light); margin-bottom: 24px;">Fill in your details below to reserve the court.</p>
+
+      <div id="booking-summary" style="background: var(--secondary); padding: 16px; border-radius: var(--radius); margin-bottom: 24px;">
+        <div class="loading-state" style="padding: 8px 0;">
+          <div class="loading-spinner" style="width: 20px; height: 20px; margin: 0 auto 8px;"></div>
+          <div style="font-size: 0.875rem;">Loading court details...</div>
+        </div>
+      </div>
+
+      <form id="booking-form">
+        <div class="form-group">
+          <label for="guest_name">Your Name *</label>
+          <input type="text" id="guest_name" name="guest_name" required placeholder="John Doe" autocomplete="name" aria-required="true">
+        </div>
+
+        <div class="form-group">
+          <label for="guest_phone">Phone Number *</label>
+          <input type="tel" id="guest_phone" name="guest_phone" required placeholder="+63 9XX XXX XXXX" autocomplete="tel" aria-required="true">
+        </div>
+
+        <fieldset class="fieldset">
+          <legend>Payment Method *</legend>
+          <div class="radio-group" role="radiogroup" aria-label="Payment method">
+            <label class="radio-option">
+              <input type="radio" name="payment_method" value="cash" required>
+              <div class="radio-option-content">
+                <div class="radio-option-title">Cash (Pay at the Court)</div>
+                <div class="radio-option-desc">Pay when you arrive. Status: Awaiting Cash Payment</div>
+              </div>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="payment_method" value="online">
+              <div class="radio-option-content">
+                <div class="radio-option-title">Online (GCash / Maya)</div>
+                <div class="radio-option-desc">Pay now via QR code. Status: Awaiting Payment</div>
+              </div>
+            </label>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">Confirm Booking</button>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2025 Pickleball Court Booking. All rights reserved.</p>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    const courtId = getUrlParam('court_id');
+    const date = getUrlParam('date');
+    const timeSlot = getUrlParam('time_slot');
+    const form = document.getElementById('booking-form');
+    const summaryEl = document.getElementById('booking-summary');
+
+    if (!courtId || !date || !timeSlot) {
+      showAlert('Invalid booking link. Please start from the schedule page.', 'error');
+      summaryEl.innerHTML = `
+        <div class="empty-state" style="padding: 24px 0;">
+          <div class="empty-state-icon">🔗</div>
+          <div class="empty-state-title">Invalid Booking Link</div>
+          <div class="empty-state-desc">Missing court, date, or time information.</div>
+          <a href="schedule.html" class="btn btn-primary" style="margin-top: 16px;">Back to Schedule</a>
+        </div>
+      `;
+      form.style.display = 'none';
+    } else {
+      loadCourtInfo();
+    }
+
+    async function loadCourtInfo() {
+      try {
+        const { data: court, error } = await supabaseClient.from('courts').select('name').eq('id', courtId).single();
+        if (error) throw error;
+        if (court) {
+          const dateObj = parseDate(date);
+          summaryEl.innerHTML = `
+            <strong>Court:</strong> ${escapeHtml(court.name)}<br>
+            <strong>Date:</strong> ${dateObj.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}<br>
+            <strong>Time:</strong> ${escapeHtml(timeSlot)}
+          `;
+        } else {
+          throw new Error('Court not found');
+        }
+      } catch (err) {
+        summaryEl.innerHTML = `
+          <div class="empty-state" style="padding: 24px 0;">
+            <div class="empty-state-icon">⚠️</div>
+            <div class="empty-state-title">Unable to Load Court Details</div>
+            <div class="empty-state-desc">${err.message}</div>
+            <button class="btn btn-primary" onclick="loadCourtInfo()" style="margin-top: 16px;">Retry</button>
+          </div>
+        `;
+        form.style.display = 'none';
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const guestName = document.getElementById('guest_name').value.trim();
+      const guestPhone = document.getElementById('guest_phone').value.trim();
+      const paymentMethod = form.payment_method.value;
+
+      if (!guestName || !guestPhone) {
+        showAlert('Please fill in all required fields.', 'error');
+        return;
+      }
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      showLoading(submitBtn);
+
+      try {
+        const status = paymentMethod === 'cash' ? 'awaiting_cash_payment' : 'awaiting_payment';
+
+        const booking = await createBooking({
+          court_id: courtId,
+          date: date,
+          time_slot: timeSlot,
+          guest_name: guestName,
+          guest_phone: guestPhone,
+          payment_method: paymentMethod,
+          status: status
+        });
+
+        hideLoading(submitBtn);
+
+        if (paymentMethod === 'cash') {
+          window.location.href = `receipt.html?ref=${booking.booking_code}`;
+        } else {
+          window.location.href = `reservation.html?id=${booking.id}`;
+        }
+      } catch (err) {
+        hideLoading(submitBtn);
+        if (err.code === '23505' || (err.message && err.message.includes('duplicate'))) {
+          showAlert('This time slot was just booked by someone else. Please choose another.', 'error');
+          setTimeout(() => window.location.href = 'schedule.html', 3000);
+        } else if (err.message && err.message.includes('row-level security')) {
+          showAlert('Booking failed due to a system error. Please try again.', 'error');
+        } else {
+          showAlert('Booking failed: ' + err.message, 'error');
+        }
+      }
+    });
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
