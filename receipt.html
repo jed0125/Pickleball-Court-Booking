@@ -23,31 +23,44 @@
       </div>
     </div>
 
-    <div style="text-align: center; margin-top: 24px;">
-      <a href="index.html" class="btn btn-primary">Back to Home</a>
-    </div>
+    <div id="receipt-actions" style="text-align: center; margin-top: 24px;" hidden></div>
   </main>
 
   <script src="app.js"></script>
   <script>
     const bookingCode = getUrlParam('ref');
     const contentEl = document.getElementById('receipt-content');
+    const actionsEl = document.getElementById('receipt-actions');
 
-    if (!bookingCode) {
-      showAlert('Invalid receipt link. No booking code provided.', 'error');
-      contentEl.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">🔗</div>
-          <div class="empty-state-title">Invalid Receipt Link</div>
-          <div class="empty-state-desc">No booking code was provided in the URL.</div>
-          <a href="index.html" class="btn btn-primary" style="margin-top: 16px;">Back to Home</a>
-        </div>
-      `;
-    } else {
-      loadReceipt();
+    async function initReceipt() {
+      const isAdmin = await checkAdmin();
+      actionsEl.innerHTML = isAdmin
+        ? `<div class="confirmation-actions">
+            <button id="print-receipt" type="button" class="btn btn-primary">Print / Save as PDF</button>
+            <a href="admin.html" class="btn btn-outline">Back to Dashboard</a>
+          </div>`
+        : '<a href="index.html" class="btn btn-primary">Back to Home</a>';
+      if (isAdmin) {
+        document.getElementById('print-receipt').addEventListener('click', () => window.print());
+      }
+      actionsEl.hidden = false;
+
+      if (!bookingCode) {
+        showAlert('Invalid receipt link. No booking code provided.', 'error');
+        contentEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">🔗</div>
+            <div class="empty-state-title">Invalid Receipt Link</div>
+            <div class="empty-state-desc">No booking code was provided in the URL.</div>
+            ${isAdmin ? '' : '<a href="index.html" class="btn btn-primary" style="margin-top: 16px;">Back to Home</a>'}
+          </div>
+        `;
+      } else {
+        await loadReceipt(isAdmin);
+      }
     }
 
-    async function loadReceipt() {
+    async function loadReceipt(isAdmin) {
       try {
         const booking = await fetchBookingByCode(bookingCode);
         const dateObj = parseDate(booking.date);
@@ -119,7 +132,7 @@
             <div class="empty-state-icon">🔍</div>
             <div class="empty-state-title">Booking Not Found</div>
             <div class="empty-state-desc">No booking exists with code <strong>${escapeHtml(bookingCode)}</strong>. Please check the code and try again.</div>
-            <a href="index.html" class="btn btn-primary" style="margin-top: 16px;">Back to Home</a>
+            ${isAdmin ? '' : '<a href="index.html" class="btn btn-primary" style="margin-top: 16px;">Back to Home</a>'}
           </div>
         `;
       }
@@ -130,6 +143,8 @@
       div.textContent = text;
       return div.innerHTML;
     }
+
+    document.addEventListener('DOMContentLoaded', initReceipt);
   </script>
 </body>
 </html>
